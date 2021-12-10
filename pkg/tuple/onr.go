@@ -74,7 +74,7 @@ func StringONR(onr *v0.ObjectAndRelation) string {
 		return ""
 	}
 
-	if onr.Relation == ellipsis {
+	if onr.Relation == Ellipsis {
 		return fmt.Sprintf(formatImplicitSubjectRel, onr.Namespace, onr.ObjectId)
 	}
 
