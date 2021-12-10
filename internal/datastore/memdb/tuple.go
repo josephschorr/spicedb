@@ -12,6 +12,7 @@ import (
 	"github.com/jzelinskie/stringz"
 
 	"github.com/authzed/spicedb/internal/datastore"
+	"github.com/authzed/spicedb/internal/datastore/common"
 )
 
 const (
@@ -56,6 +57,10 @@ func (mds *memdbDatastore) WriteTuples(ctx context.Context, preconditions []*v1.
 	defer txn.Abort()
 
 	if err := mds.checkPrecondition(txn, preconditions); err != nil {
+		return datastore.NoRevision, fmt.Errorf(errUnableToWriteTuples, err)
+	}
+
+	if err := common.ValidateUpdatesToWrite(mutations); err != nil {
 		return datastore.NoRevision, fmt.Errorf(errUnableToWriteTuples, err)
 	}
 
