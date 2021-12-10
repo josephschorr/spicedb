@@ -32,6 +32,10 @@ func onrEqual(lhs, rhs *v0.ObjectAndRelation) bool {
 	return lhs.ObjectId == rhs.ObjectId && lhs.Relation == rhs.Relation && lhs.Namespace == rhs.Namespace
 }
 
+func onrEqualOrPublic(tuple, target *v0.ObjectAndRelation) bool {
+	return onrEqual(tuple, target) || (target.Namespace == tuple.Namespace && tuple.ObjectId == "*")
+}
+
 // ValidatedCheckRequest represents a request after it has been validated and parsed for internal
 // consumption.
 type ValidatedCheckRequest struct {
@@ -82,7 +86,7 @@ func (cc *ConcurrentChecker) checkDirect(ctx context.Context, req ValidatedCheck
 		var requestsToDispatch []ReduceableCheckFunc
 		for tpl := it.Next(); tpl != nil; tpl = it.Next() {
 			tplUserset := tpl.User.GetUserset()
-			if onrEqual(tplUserset, req.Subject) {
+			if onrEqualOrPublic(tplUserset, req.Subject) {
 				resultChan <- checkResult(v1.DispatchCheckResponse_MEMBER, emptyMetadata)
 				return
 			}

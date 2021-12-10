@@ -181,7 +181,6 @@ func TestEditCheck(t *testing.T) {
 				},
 			},
 		},
-		/* TODO(evan): Uncomment once dispatch for wildcard is supported.
 		{
 			"valid wildcard checks",
 			`
@@ -209,7 +208,6 @@ func TestEditCheck(t *testing.T) {
 				},
 			},
 		},
-		*/
 	}
 
 	for _, tc := range tests {
