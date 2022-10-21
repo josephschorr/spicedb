@@ -440,12 +440,15 @@ func (m *FoundSubject) CloneVT() *FoundSubject {
 		return (*FoundSubject)(nil)
 	}
 	r := &FoundSubject{
-		SubjectId: m.SubjectId,
+		SubjectId:        m.SubjectId,
+		CaveatExpression: m.CaveatExpression.CloneVT(),
 	}
-	if rhs := m.ExcludedSubjectIds; rhs != nil {
-		tmpContainer := make([]string, len(rhs))
-		copy(tmpContainer, rhs)
-		r.ExcludedSubjectIds = tmpContainer
+	if rhs := m.ExcludedSubjects; rhs != nil {
+		tmpContainer := make([]*FoundSubject, len(rhs))
+		for k, v := range rhs {
+			tmpContainer[k] = v.CloneVT()
+		}
+		r.ExcludedSubjects = tmpContainer
 	}
 	if len(m.unknownFields) > 0 {
 		r.unknownFields = make([]byte, len(m.unknownFields))
@@ -1616,14 +1619,27 @@ func (m *FoundSubject) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
-	if len(m.ExcludedSubjectIds) > 0 {
-		for iNdEx := len(m.ExcludedSubjectIds) - 1; iNdEx >= 0; iNdEx-- {
-			i -= len(m.ExcludedSubjectIds[iNdEx])
-			copy(dAtA[i:], m.ExcludedSubjectIds[iNdEx])
-			i = encodeVarint(dAtA, i, uint64(len(m.ExcludedSubjectIds[iNdEx])))
+	if len(m.ExcludedSubjects) > 0 {
+		for iNdEx := len(m.ExcludedSubjects) - 1; iNdEx >= 0; iNdEx-- {
+			size, err := m.ExcludedSubjects[iNdEx].MarshalToSizedBufferVT(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarint(dAtA, i, uint64(size))
 			i--
-			dAtA[i] = 0x12
+			dAtA[i] = 0x1a
 		}
+	}
+	if m.CaveatExpression != nil {
+		size, err := m.CaveatExpression.MarshalToSizedBufferVT(dAtA[:i])
+		if err != nil {
+			return 0, err
+		}
+		i -= size
+		i = encodeVarint(dAtA, i, uint64(size))
+		i--
+		dAtA[i] = 0x12
 	}
 	if len(m.SubjectId) > 0 {
 		i -= len(m.SubjectId)
@@ -2366,9 +2382,13 @@ func (m *FoundSubject) SizeVT() (n int) {
 	if l > 0 {
 		n += 1 + l + sov(uint64(l))
 	}
-	if len(m.ExcludedSubjectIds) > 0 {
-		for _, s := range m.ExcludedSubjectIds {
-			l = len(s)
+	if m.CaveatExpression != nil {
+		l = m.CaveatExpression.SizeVT()
+		n += 1 + l + sov(uint64(l))
+	}
+	if len(m.ExcludedSubjects) > 0 {
+		for _, e := range m.ExcludedSubjects {
+			l = e.SizeVT()
 			n += 1 + l + sov(uint64(l))
 		}
 	}
@@ -4769,9 +4789,9 @@ func (m *FoundSubject) UnmarshalVT(dAtA []byte) error {
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ExcludedSubjectIds", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field CaveatExpression", wireType)
 			}
-			var stringLen uint64
+			var msglen int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return ErrIntOverflow
@@ -4781,23 +4801,61 @@ func (m *FoundSubject) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= uint64(b&0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
-			intStringLen := int(stringLen)
-			if intStringLen < 0 {
+			if msglen < 0 {
 				return ErrInvalidLength
 			}
-			postIndex := iNdEx + intStringLen
+			postIndex := iNdEx + msglen
 			if postIndex < 0 {
 				return ErrInvalidLength
 			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.ExcludedSubjectIds = append(m.ExcludedSubjectIds, string(dAtA[iNdEx:postIndex]))
+			if m.CaveatExpression == nil {
+				m.CaveatExpression = &CaveatExpression{}
+			}
+			if err := m.CaveatExpression.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ExcludedSubjects", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ExcludedSubjects = append(m.ExcludedSubjects, &FoundSubject{})
+			if err := m.ExcludedSubjects[len(m.ExcludedSubjects)-1].UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
