@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"testing"
@@ -955,42 +956,40 @@ func TestSubjectSetIntersection(t *testing.T) {
 	}
 }
 
-func TestCommutativity(t *testing.T) {
-	sets := [][]*v1.FoundSubject{
-		{sub("foo"), sub("bar")},
-		{sub("foo")},
-		{sub("baz")},
-		{wc()},
-		{wc("tom")},
-		{wc("1", "2")},
-		{wc("1", "2", "3")},
-		{wc("2", "3")},
-		{sub("1")},
-		{wc(), sub("1"), sub("2")},
-		{wc(), sub("2")},
-		{wc(), sub("1")},
-		{csub("1", caveatexpr("caveat"))},
-		{csub("1", caveatexpr("caveat2"))},
-		{cwc(caveatexpr("caveat2"))},
-		{cwc(caveatexpr("wcaveat"), sub("1"))},
-	}
-	for _, pair := range allPairs(sets) {
+var testSets = [][]*v1.FoundSubject{
+	{sub("foo"), sub("bar")},
+	{sub("foo")},
+	{sub("baz")},
+	{wc()},
+	{wc("tom")},
+	{wc("1", "2")},
+	{wc("1", "2", "3")},
+	{wc("2", "3")},
+	{sub("1")},
+	{wc(), sub("1"), sub("2")},
+	{wc(), sub("2")},
+	{wc(), sub("1")},
+	{csub("1", caveatexpr("caveat"))},
+	{csub("1", caveatexpr("caveat2"))},
+	{cwc(caveatexpr("caveat2"))},
+	{cwc(caveatexpr("wcaveat"), sub("1"))},
+}
+
+func TestUnionCommutativity(t *testing.T) {
+	for _, pair := range allSubsets(testSets, 2) {
 		t.Run(fmt.Sprintf("%v", pair), func(t *testing.T) {
 			left1, left2 := NewSubjectSet(), NewSubjectSet()
-			for _, l := range pair.Left {
+			for _, l := range pair[0] {
 				left1.Add(l)
 				left2.Add(l)
 			}
-
 			right1, right2 := NewSubjectSet(), NewSubjectSet()
-			for _, r := range pair.Right {
+			for _, r := range pair[1] {
 				right1.Add(r)
 				right2.Add(r)
 			}
-
 			// left union right
 			left1.UnionWithSet(right1)
-
 			// right union left
 			right2.UnionWithSet(left2)
 
@@ -1012,17 +1011,217 @@ func TestCommutativity(t *testing.T) {
 	}
 }
 
-type Pair[T any] struct {
-	Left  T
-	Right T
+func TestUnionAssociativity(t *testing.T) {
+	for _, triple := range allSubsets(testSets, 3) {
+		t.Run(fmt.Sprintf("%v", triple), func(t *testing.T) {
+
+			// A U (B U C) == (A U B) U C
+
+			A1, A2 := NewSubjectSet(), NewSubjectSet()
+			for _, l := range triple[0] {
+				A1.Add(l)
+				A2.Add(l)
+			}
+			B1, B2 := NewSubjectSet(), NewSubjectSet()
+			for _, l := range triple[0] {
+				B1.Add(l)
+				B2.Add(l)
+			}
+			C1, C2 := NewSubjectSet(), NewSubjectSet()
+			for _, l := range triple[0] {
+				C1.Add(l)
+				C2.Add(l)
+			}
+
+			// A U (B U C)
+			B1.UnionWithSet(C1)
+			A1.UnionWithSet(B1)
+
+			// (A U B) U C
+			A2.UnionWithSet(B2)
+			A2.UnionWithSet(C2)
+
+			mergedLeft := A1.AsSlice()
+			mergedRight := A2.AsSlice()
+
+			sort.Sort(sortByID(mergedLeft))
+			sort.Sort(sortByID(mergedRight))
+			stableSortExclusions(mergedLeft)
+			stableSortExclusions(mergedRight)
+			stableSortOrCaveats(mergedLeft)
+			stableSortOrCaveats(mergedRight)
+
+			require.Equal(t, len(mergedLeft), len(mergedRight))
+			for index := range mergedLeft {
+				require.True(t, proto.Equal(mergedLeft[index], mergedRight[index]), "triple: %v\nexpected %v\nfound %v", triple, mergedLeft[index], mergedRight[index])
+			}
+		})
+	}
 }
 
-// allPairs returns a list of sets with all pairs
-func allPairs[T any](objs []T) []Pair[T] {
-	all := make([]Pair[T], 0, len(objs)*len(objs))
-	for i := 0; i < len(objs); i++ {
-		for j := i; j < len(objs); j++ {
-			all = append(all, Pair[T]{Left: objs[i], Right: objs[j]})
+func TestIntersectionCommutativity(t *testing.T) {
+	for _, pair := range allSubsets(testSets, 2) {
+		t.Run(fmt.Sprintf("%v", pair), func(t *testing.T) {
+			left1, left2 := NewSubjectSet(), NewSubjectSet()
+			for _, l := range pair[0] {
+				left1.Add(l)
+				left2.Add(l)
+			}
+			right1, right2 := NewSubjectSet(), NewSubjectSet()
+			for _, r := range pair[1] {
+				right1.Add(r)
+				right2.Add(r)
+			}
+			// left intersect right
+			left1.IntersectionDifference(right1)
+			// right intersects left
+			right2.IntersectionDifference(left2)
+
+			mergedLeft := left1.AsSlice()
+			mergedRight := right2.AsSlice()
+
+			sort.Sort(sortByID(mergedLeft))
+			sort.Sort(sortByID(mergedRight))
+			stableSortExclusions(mergedLeft)
+			stableSortExclusions(mergedRight)
+			stableSortOrCaveats(mergedLeft)
+			stableSortOrCaveats(mergedRight)
+			stableSortAndCaveats(mergedLeft)
+			stableSortAndCaveats(mergedRight)
+
+			require.Equal(t, len(mergedLeft), len(mergedRight))
+			for index := range mergedLeft {
+				require.True(t, proto.Equal(mergedLeft[index], mergedRight[index]), "pair: %v\nexpected %v\nfound %v", pair, mergedLeft[index], mergedRight[index])
+			}
+		})
+	}
+}
+
+func TestIntersectionAssociativity(t *testing.T) {
+	for _, triple := range allSubsets(testSets, 3) {
+		t.Run(fmt.Sprintf("%v", triple), func(t *testing.T) {
+
+			// A ∩ (B ∩ C) == (A ∩ B) ∩ C
+
+			A1, A2 := NewSubjectSet(), NewSubjectSet()
+			for _, l := range triple[0] {
+				A1.Add(l)
+				A2.Add(l)
+			}
+			B1, B2 := NewSubjectSet(), NewSubjectSet()
+			for _, l := range triple[0] {
+				B1.Add(l)
+				B2.Add(l)
+			}
+			C1, C2 := NewSubjectSet(), NewSubjectSet()
+			for _, l := range triple[0] {
+				C1.Add(l)
+				C2.Add(l)
+			}
+
+			// A ∩ (B ∩ C)
+			B1.IntersectionDifference(C1)
+			A1.IntersectionDifference(B1)
+
+			// (A ∩ B) ∩ C
+			A2.IntersectionDifference(B2)
+			A2.IntersectionDifference(C2)
+
+			mergedLeft := A1.AsSlice()
+			mergedRight := A2.AsSlice()
+
+			sort.Sort(sortByID(mergedLeft))
+			sort.Sort(sortByID(mergedRight))
+			stableSortExclusions(mergedLeft)
+			stableSortExclusions(mergedRight)
+			stableSortOrCaveats(mergedLeft)
+			stableSortOrCaveats(mergedRight)
+
+			require.Equal(t, len(mergedLeft), len(mergedRight))
+			for index := range mergedLeft {
+				require.True(t, proto.Equal(mergedLeft[index], mergedRight[index]), "triple: %v\nexpected %v\nfound %v", triple, mergedLeft[index], mergedRight[index])
+			}
+		})
+	}
+}
+
+func TestIdempotentUnion(t *testing.T) {
+	for _, set := range testSets {
+		t.Run(fmt.Sprintf("%v", set), func(t *testing.T) {
+			// A U A == A
+			A1, A2 := NewSubjectSet(), NewSubjectSet()
+			for _, l := range set {
+				A1.Add(l)
+				A2.Add(l)
+			}
+			A1.UnionWithSet(A2)
+
+			mergedLeft := A1.AsSlice()
+			mergedRight := A2.AsSlice()
+
+			sort.Sort(sortByID(mergedLeft))
+			sort.Sort(sortByID(mergedRight))
+			stableSortExclusions(mergedLeft)
+			stableSortExclusions(mergedRight)
+			stableSortOrCaveats(mergedLeft)
+			stableSortOrCaveats(mergedRight)
+
+			require.Equal(t, len(mergedLeft), len(mergedRight))
+			for index := range mergedLeft {
+				require.True(t, proto.Equal(mergedLeft[index], mergedRight[index]), "set: %v\nexpected %v\nfound %v", set, mergedLeft[index], mergedRight[index])
+			}
+		})
+	}
+}
+
+func TestIdempotentIntersection(t *testing.T) {
+	for _, set := range testSets {
+		t.Run(fmt.Sprintf("%v", set), func(t *testing.T) {
+			// A ∩ A == A
+			A1, A2 := NewSubjectSet(), NewSubjectSet()
+			for _, l := range set {
+				A1.Add(l)
+				A2.Add(l)
+			}
+			A1.IntersectionDifference(A2)
+			mergedLeft := A1.AsSlice()
+			mergedRight := A2.AsSlice()
+
+			sort.Sort(sortByID(mergedLeft))
+			sort.Sort(sortByID(mergedRight))
+			stableSortExclusions(mergedLeft)
+			stableSortExclusions(mergedRight)
+			stableSortOrCaveats(mergedLeft)
+			stableSortOrCaveats(mergedRight)
+
+			require.Equal(t, len(mergedLeft), len(mergedRight))
+			for index := range mergedLeft {
+				require.True(t, proto.Equal(mergedLeft[index], mergedRight[index]), "set: %v\nexpected %v\nfound %v", set, mergedLeft[index], mergedRight[index])
+			}
+		})
+	}
+}
+
+// allSubsets returns a list of all subsets of length n
+// it counts in binary and "activates" input funcs that match 1s in the binary representation
+// it doesn't check for overflow so don't go crazy
+func allSubsets[T any](objs []T, n int) [][]T {
+	maxInt := uint(math.Exp2(float64(len(objs)))) - 1
+	all := make([][]T, 0)
+
+	for i := uint(0); i < maxInt; i++ {
+		set := make([]T, 0, n)
+		for digit := uint(0); digit < uint(len(objs)); digit++ {
+			mask := uint(1) << digit
+			if mask&i != 0 {
+				set = append(set, objs[digit])
+			}
+			if len(set) > n {
+				break
+			}
+		}
+		if len(set) == n {
+			all = append(all, set)
 		}
 	}
 	return all
@@ -1043,6 +1242,30 @@ func stableSortExclusions(fss []*v1.FoundSubject) {
 func stableSortOrCaveats(fss []*v1.FoundSubject) {
 	for _, fs := range fss {
 		if fs.CaveatExpression != nil && fs.CaveatExpression.GetOperation() != nil && fs.CaveatExpression.GetOperation().Op == v1.CaveatOperation_OR {
+			childCaveats := []string{}
+			op := fs.CaveatExpression.GetOperation()
+			for _, child := range op.GetChildren() {
+				if child.GetCaveat() != nil {
+					childCaveats = append(childCaveats, child.GetCaveat().CaveatName)
+				}
+			}
+
+			sort.Strings(childCaveats)
+
+			if len(childCaveats) == len(fs.CaveatExpression.GetOperation().GetChildren()) {
+				updatedChildren := make([]*v1.CaveatExpression, 0, len(childCaveats))
+				for _, caveatName := range childCaveats {
+					updatedChildren = append(updatedChildren, caveatexpr(caveatName))
+				}
+				op.Children = updatedChildren
+			}
+		}
+	}
+}
+
+func stableSortAndCaveats(fss []*v1.FoundSubject) {
+	for _, fs := range fss {
+		if fs.CaveatExpression != nil && fs.CaveatExpression.GetOperation() != nil && fs.CaveatExpression.GetOperation().Op == v1.CaveatOperation_AND {
 			childCaveats := []string{}
 			op := fs.CaveatExpression.GetOperation()
 			for _, child := range op.GetChildren() {
