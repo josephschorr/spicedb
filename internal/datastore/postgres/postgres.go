@@ -222,6 +222,7 @@ func newPostgresDatastore(
 		cancelGc:                cancelGc,
 		readTxOptions:           pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly},
 		maxRetries:              config.maxRetries,
+		queryLogger:             config.queryLogger,
 	}
 
 	datastore.SetOptimizedRevisionFunc(datastore.optimizedRevisionFunc)
@@ -285,6 +286,8 @@ type pgDatastore struct {
 	gcGroup  *errgroup.Group
 	gcCtx    context.Context
 	cancelGc context.CancelFunc
+
+	queryLogger datastore.QueryLoggerForTesting
 }
 
 func (pgd *pgDatastore) SnapshotReader(revRaw datastore.Revision) datastore.Reader {
@@ -306,7 +309,7 @@ func (pgd *pgDatastore) SnapshotReader(revRaw datastore.Revision) datastore.Read
 	}
 
 	querySplitter := common.TupleQuerySplitter{
-		Executor:         pgxcommon.NewPGXExecutor(createTxFunc),
+		Executor:         pgxcommon.NewPGXExecutor(createTxFunc, pgd.queryLogger),
 		UsersetBatchSize: pgd.usersetBatchSize,
 	}
 
@@ -340,7 +343,7 @@ func (pgd *pgDatastore) ReadWriteTx(
 			}
 
 			querySplitter := common.TupleQuerySplitter{
-				Executor:         pgxcommon.NewPGXExecutor(longLivedTx),
+				Executor:         pgxcommon.NewPGXExecutor(longLivedTx, pgd.queryLogger),
 				UsersetBatchSize: pgd.usersetBatchSize,
 			}
 
