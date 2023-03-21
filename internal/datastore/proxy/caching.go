@@ -205,6 +205,8 @@ func readAndCache[T schemaDefinition](
 	reader func(ctx context.Context, name string) (T, datastore.Revision, error),
 	estimator func(sizeVT int) int64,
 ) (T, datastore.Revision, error) {
+	return reader(SeparateContextWithTracing(ctx), name)
+
 	// Check the cache.
 	cacheRevisionKey := prefix + ":" + name + "@" + r.rev.String()
 	loadedRaw, found := r.p.c.Get(cacheRevisionKey)
@@ -277,6 +279,8 @@ func readAndCacheInTransaction[T schemaDefinition](
 	name string,
 	reader func(ctx context.Context, name string) (T, datastore.Revision, error),
 ) (T, datastore.Revision, error) {
+	return reader(ctx, name)
+
 	key := prefix + ":" + name
 	untypedEntry, ok := rwt.definitionCache.Load(key)
 
