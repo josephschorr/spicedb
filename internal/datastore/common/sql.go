@@ -5,6 +5,8 @@ import (
 	"math"
 	"strings"
 
+	"github.com/authzed/spicedb/pkg/tuple"
+
 	sq "github.com/Masterminds/squirrel"
 	v1 "github.com/authzed/authzed-go/proto/authzed/api/v1"
 	"github.com/jzelinskie/stringz"
@@ -415,6 +417,10 @@ func (sqf SchemaQueryFilterer) FilterWithSubjectsSelectors(selectors ...datastor
 				relations := make([]string, 0, 2)
 				if selector.RelationFilter.IncludeEllipsisRelation {
 					relations = append(relations, datastore.Ellipsis)
+				}
+
+				if selector.RelationFilter.NonEllipsisRelation == tuple.Ellipsis {
+					return sqf, spiceerrors.MustBugf("found ellipsis relation in non-ellipsis relation filter")
 				}
 
 				if selector.RelationFilter.NonEllipsisRelation != "" {
