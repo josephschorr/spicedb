@@ -82,12 +82,12 @@ func (c *Config) ToOption() ConfigOption {
 		to.MaxDatastoreReadPageSize = c.MaxDatastoreReadPageSize
 		to.StreamingAPITimeout = c.StreamingAPITimeout
 		to.WatchHeartbeat = c.WatchHeartbeat
-		to.MismatchZedTokenBehavior = c.MismatchZedTokenBehavior
 		to.MaxReadRelationshipsLimit = c.MaxReadRelationshipsLimit
 		to.MaxDeleteRelationshipsLimit = c.MaxDeleteRelationshipsLimit
 		to.MaxLookupResourcesLimit = c.MaxLookupResourcesLimit
 		to.MaxBulkExportRelationshipsLimit = c.MaxBulkExportRelationshipsLimit
 		to.EnableExperimentalLookupResources = c.EnableExperimentalLookupResources
+		to.MismatchZedTokenBehavior = c.MismatchZedTokenBehavior
 		to.MetricsAPI = c.MetricsAPI
 		to.UnaryMiddlewareModification = c.UnaryMiddlewareModification
 		to.StreamingMiddlewareModification = c.StreamingMiddlewareModification
@@ -150,12 +150,12 @@ func (c Config) DebugMap() map[string]any {
 	debugMap["MaxDatastoreReadPageSize"] = helpers.DebugValue(c.MaxDatastoreReadPageSize, false)
 	debugMap["StreamingAPITimeout"] = helpers.DebugValue(c.StreamingAPITimeout, false)
 	debugMap["WatchHeartbeat"] = helpers.DebugValue(c.WatchHeartbeat, false)
-	debugMap["MismatchZedTokenBehavior"] = helpers.DebugValue(c.MismatchZedTokenBehavior, false)
 	debugMap["MaxReadRelationshipsLimit"] = helpers.DebugValue(c.MaxReadRelationshipsLimit, false)
 	debugMap["MaxDeleteRelationshipsLimit"] = helpers.DebugValue(c.MaxDeleteRelationshipsLimit, false)
 	debugMap["MaxLookupResourcesLimit"] = helpers.DebugValue(c.MaxLookupResourcesLimit, false)
 	debugMap["MaxBulkExportRelationshipsLimit"] = helpers.DebugValue(c.MaxBulkExportRelationshipsLimit, false)
 	debugMap["EnableExperimentalLookupResources"] = helpers.DebugValue(c.EnableExperimentalLookupResources, false)
+	debugMap["MismatchZedTokenBehavior"] = helpers.DebugValue(c.MismatchZedTokenBehavior, false)
 	debugMap["MetricsAPI"] = helpers.DebugValue(c.MetricsAPI, false)
 	debugMap["SilentlyDisableTelemetry"] = helpers.DebugValue(c.SilentlyDisableTelemetry, false)
 	debugMap["TelemetryCAOverridePath"] = helpers.DebugValue(c.TelemetryCAOverridePath, false)
@@ -519,13 +519,6 @@ func WithWatchHeartbeat(watchHeartbeat time.Duration) ConfigOption {
 	}
 }
 
-// WithMismatchZedTokenBehavior returns an option that can set MismatchZedTokenBehavior on a Config
-func WithMismatchZedTokenBehavior(mismatchZedTokenBehavior string) ConfigOption {
-	return func(c *Config) {
-		c.MismatchZedTokenBehavior = mismatchZedTokenBehavior
-	}
-}
-
 // WithMaxReadRelationshipsLimit returns an option that can set MaxReadRelationshipsLimit on a Config
 func WithMaxReadRelationshipsLimit(maxReadRelationshipsLimit uint32) ConfigOption {
 	return func(c *Config) {
@@ -558,6 +551,13 @@ func WithMaxBulkExportRelationshipsLimit(maxBulkExportRelationshipsLimit uint32)
 func WithEnableExperimentalLookupResources(enableExperimentalLookupResources bool) ConfigOption {
 	return func(c *Config) {
 		c.EnableExperimentalLookupResources = enableExperimentalLookupResources
+	}
+}
+
+// WithMismatchZedTokenBehavior returns an option that can set MismatchZedTokenBehavior on a Config
+func WithMismatchZedTokenBehavior(mismatchZedTokenBehavior string) ConfigOption {
+	return func(c *Config) {
+		c.MismatchZedTokenBehavior = mismatchZedTokenBehavior
 	}
 }
 
